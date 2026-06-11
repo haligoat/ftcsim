@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FTC Robot Simulator</title>
+<style>
+  :root {
+    --bg: #0d1117; --bg2: #161b22; --bg3: #1c2128;
+    --border: #30363d; --text: #e6edf3; --text2: #8b949e;
+    --accent: #2ea043; --accent2: #1f6feb; --danger: #da3633; --warn: #d29922;
+    --font: 'Segoe UI', system-ui, sans-serif;
+    --mono: 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; overflow: hidden; }
+  #app { display: grid; grid-template-columns: 260px 1fr 340px; grid-template-rows: 48px 1fr 200px; height: 100vh; }
+
+  /* Header */
+  #header { grid-column: 1/-1; background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; gap: 12px; }
+  #header h1 { font-size: 15px; font-weight: 600; }
+  #header h1 span { color: var(--accent2); }
+  .hbadge { font-size: 11px; background: var(--bg3); border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px; color: var(--text2); }
+  .hspacer { flex: 1; }
+  .hbtn { background: transparent; border: 1px solid var(--border); color: var(--text2); padding: 5px 12px; border-radius: 5px; cursor: pointer; font-size: 12px; font-family: var(--font); transition: all 0.15s; }
+  .hbtn:hover { border-color: var(--accent2); color: var(--text); }
+  .hbtn.run { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .hbtn.run:hover { background: #2c974b; }
+  .hbtn.stop { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .hbtn.import-btn { border-color: var(--accent2); color: var(--accent2); font-weight: 600; }
+  .hbtn.import-btn:hover { background: rgba(31,111,235,0.15); }
+
+  /* Left panel */
+  #left { background: var(--bg2); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
+  .panel-section { border-bottom: 1px solid var(--border); padding: 12px 14px; }
+  .panel-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text2); margin-bottom: 10px; font-weight: 600; }
+  .form-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .form-row label { font-size: 12px; color: var(--text2); width: 90px; flex-shrink: 0; }
+  .form-row input[type=number], .form-row select { flex: 1; background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-family: var(--font); }
+  .form-row input[type=number]:focus { outline: none; border-color: var(--accent2); }
+  .form-row input[type=color] { width: 36px; height: 26px; border: 1px solid var(--border); border-radius: 4px; padding: 2px; background: var(--bg3); cursor: pointer; }
+  .small-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-family: var(--font); transition: all 0.12s; }
+  .small-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .small-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+  #barrier-list { max-height: 120px; overflow-y: auto; }
+  .barrier-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .barrier-item:last-child { border-bottom: none; }
+  .barrier-item .bname { flex: 1; color: var(--text2); }
+  .barrier-item button { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 14px; padding: 0 2px; }
+  .barrier-color-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .tool-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .tool-btn { flex: 1; min-width: 70px; background: var(--bg3); border: 1px solid var(--border); color: var(--text2); padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; text-align: center; transition: all 0.12s; }
+  .tool-btn.active { border-color: var(--accent2); color: var(--accent2); background: rgba(31,111,235,0.1); }
+  #telemetry { background: var(--bg3); border-radius: 4px; padding: 8px; font-family: var(--mono); font-size: 11px; color: #56d364; min-height: 60px; max-height: 160px; overflow-y: auto; white-space: pre; }
+  #telemetry .tkey { color: var(--accent2); }
+
+  /* Java import panel */
+  #import-panel { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 14px; }
+  #import-panel h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text2); margin-bottom: 10px; font-weight: 600; }
+  #drop-zone { border: 2px dashed var(--border); border-radius: 6px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; color: var(--text2); font-size: 12px; }
+  #drop-zone:hover, #drop-zone.dragover { border-color: var(--accent2); color: var(--accent2); background: rgba(31,111,235,0.05); }
+  #drop-zone .drop-icon { font-size: 22px; display: block; margin-bottom: 6px; }
+  #java-file-input { display: none; }
+  #import-status { margin-top: 8px; font-size: 11px; font-family: var(--mono); padding: 6px 8px; border-radius: 4px; display: none; }
+  #import-status.success { background: rgba(46,160,67,0.15); color: var(--accent); border: 1px solid rgba(46,160,67,0.3); }
+  #import-status.error { background: rgba(218,54,51,0.15); color: var(--danger); border: 1px solid rgba(218,54,51,0.3); }
+  #import-status.warn { background: rgba(210,153,34,0.15); color: var(--warn); border: 1px solid rgba(210,153,34,0.3); }
+  #parsed-info { margin-top: 8px; font-size: 11px; color: var(--text2); display: none; }
+  #parsed-info .prow { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid var(--border); }
+  #parsed-info .prow:last-child { border-bottom: none; }
+  #parsed-info .pval { color: var(--text); font-family: var(--mono); }
+
+  /* Canvas */
+  #canvas-area { position: relative; background: #0a0e14; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  #field-canvas { cursor: crosshair; }
+  #canvas-overlay { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.6); border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px; font-size: 11px; color: var(--text2); pointer-events: none; }
+  #sim-status { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.7); border: 1px solid var(--border); border-radius: 5px; padding: 5px 10px; font-size: 11px; font-family: var(--mono); }
+  .status-running { color: var(--accent); border-color: var(--accent) !important; }
+  .status-idle { color: var(--text2); }
+  /* Waypoint trail */
+  #waypoint-legend { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.65); border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px; font-size: 10px; color: var(--text2); pointer-events: none; display: none; }
+  #waypoint-legend span { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+  /* Code editor */
+  #right { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+  #code-tabs { display: flex; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .code-tab { padding: 8px 14px; font-size: 12px; color: var(--text2); cursor: pointer; border-right: 1px solid var(--border); }
+  .code-tab.active { color: var(--text); background: var(--bg2); }
+  #code-editor-wrap { flex: 1; position: relative; overflow: hidden; }
+  #code-editor { width: 100%; height: 100%; background: var(--bg); color: #e6edf3; border: none; outline: none; resize: none; font-family: var(--mono); font-size: 12px; line-height: 1.6; padding: 12px 12px 12px 48px; tab-size: 4; overflow-y: auto; }
+  #line-nums { position: absolute; left: 0; top: 0; width: 36px; height: 100%; background: var(--bg2); border-right: 1px solid var(--border); padding: 12px 6px; font-family: var(--mono); font-size: 12px; line-height: 1.6; color: var(--text2); text-align: right; pointer-events: none; overflow: hidden; }
+
+  /* Console */
+  #console-bar { grid-column: 1/-1; background: var(--bg); border-top: 1px solid var(--border); display: flex; flex-direction: column; }
+  #console-tabs { display: flex; padding: 0 8px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+  .ctab { padding: 6px 12px; font-size: 11px; color: var(--text2); cursor: pointer; }
+  .ctab.active { color: var(--text); border-bottom: 2px solid var(--accent2); }
+  #console-out { flex: 1; padding: 8px 12px; font-family: var(--mono); font-size: 11px; overflow-y: auto; line-height: 1.7; }
+  #console-out .log { color: var(--text); }
+  #console-out .warn { color: var(--warn); }
+  #console-out .error { color: var(--danger); }
+  #console-out .info { color: var(--accent2); }
+  #console-out .success { color: var(--accent); }
+  .con-ts { color: var(--text2); margin-right: 8px; font-size: 10px; }
+</style>
+</head>
+<body>
+<input type="file" id="java-file-input" accept=".java">
+<div id="app">
+  <div id="header">
+    <h1>FTC <span>Robot Simulator</span></h1>
+    <span class="hbadge">v2.0 · Java Import</span>
+    <div class="hspacer"></div>
+    <button class="hbtn import-btn" id="btn-import-java">⬆ Import .java</button>
+    <button class="hbtn" id="btn-reset-pos">Reset Robot</button>
+    <button class="hbtn" id="btn-clear-barriers" onclick="clearBarriers()">Clear Barriers</button>
+    <button class="hbtn" id="btn-load-example">Load Example</button>
+    <button class="hbtn run" id="btn-run">▶ Run Auto</button>
+    <button class="hbtn stop" id="btn-stop" style="display:none">■ Stop</button>
+  </div>
+
+  <div id="left">
+    <!-- Java Import Section -->
+    <div id="import-panel">
+      <h3>Java OpMode Import</h3>
+      <div id="drop-zone" onclick="document.getElementById('java-file-input').click()">
+        <span class="drop-icon">☕</span>
+        Drop <strong>.java</strong> file here<br>or click to browse
+      </div>
+      <div id="import-status"></div>
+      <div id="parsed-info"></div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Field Settings</h3>
+      <div class="form-row"><label>Field (in)</label><input type="number" id="field-size" value="144" min="48" max="300" step="12"></div>
+      <div class="form-row"><label>Tile (in)</label><input type="number" id="tile-size" value="24" min="12" max="48" step="6"></div>
+    </div>
+    <div class="panel-section">
+      <h3>Robot Config</h3>
+      <div class="form-row"><label>Width (in)</label><input type="number" id="robot-w" value="18" min="4" max="48"></div>
+      <div class="form-row"><label>Length (in)</label><input type="number" id="robot-l" value="18" min="4" max="48"></div>
+      <div class="form-row"><label>Start X (in)</label><input type="number" id="start-x" value="0"></div>
+      <div class="form-row"><label>Start Y (in)</label><input type="number" id="start-y" value="0"></div>
+      <div class="form-row"><label>Heading°</label><input type="number" id="start-h" value="0" min="0" max="359"></div>
+      <div class="form-row"><label>Speed</label><input type="number" id="drive-speed" value="1.0" min="0.1" max="1.0" step="0.1"></div>
+    </div>
+    <div class="panel-section">
+      <h3>Draw Tool</h3>
+      <div class="tool-row">
+        <div class="tool-btn active" id="tool-barrier" onclick="setTool('barrier')">Barrier</div>
+        <div class="tool-btn" id="tool-move" onclick="setTool('move')">Move Robot</div>
+        <div class="tool-btn" id="tool-pan" onclick="setTool('pan')">Pan</div>
+      </div>
+      <div class="form-row" style="margin-top:10px"><label>Color</label><input type="color" id="barrier-color" value="#e8b800"></div>
+      <div class="form-row"><label>Width</label><input type="number" id="barrier-width" value="4" min="1" max="24"></div>
+    </div>
+    <div class="panel-section">
+      <h3>Barriers <span id="barrier-count" style="color:var(--text2);font-weight:400">(0)</span></h3>
+      <div id="barrier-list"></div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="small-btn danger" onclick="clearBarriers()">Clear</button>
+        <button class="small-btn" onclick="exportBarriers()">Export JSON</button>
+      </div>
+    </div>
+    <div class="panel-section" style="flex:1">
+      <h3>Telemetry</h3>
+      <div id="telemetry">Ready...</div>
+    </div>
+  </div>
+
+  <div id="canvas-area">
+    <canvas id="field-canvas"></canvas>
+    <div id="canvas-overlay">Click + drag to draw barriers</div>
+    <div id="sim-status" class="status-idle">● IDLE</div>
+    <div id="waypoint-legend">
+      <span style="background:#4fc3f7"></span>Waypoint &nbsp;
+      <span style="background:#ff6b6b"></span>Current target
+    </div>
+  </div>
+
+  <div id="right">
+    <div id="code-tabs">
+      <div class="code-tab active" id="tab-js" onclick="switchTab('js')">Simulator Script</div>
+      <div class="code-tab" id="tab-java" onclick="switchTab('java')">Java Source</div>
+    </div>
+    <div id="code-editor-wrap">
+      <div id="line-nums"></div>
+      <textarea id="code-editor" spellcheck="false"></textarea>
+    </div>
+  </div>
+
+  <div id="console-bar">
+    <div id="console-tabs"><div class="ctab active">Console</div></div>
+    <div id="console-out"></div>
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────
+const state = {
+  barriers: [], robot: { x: 0, y: 0, heading: 0, w: 18, h: 18 },
+  startPos: { x: 0, y: 0, heading: 0 },
+  field: { size: 144, tileSize: 24 },
+  tool: 'barrier', dragging: false, dragStart: null, dragCurrent: null,
+  running: false, simTime: 0, stopRequested: false, telemetryData: {},
+  pan: { x: 0, y: 0, dragging: false, last: null }, zoom: 1,
+  barrierColor: '#e8b800', barrierWidth: 4,
+  waypoints: [],        // [{x,y,label}] from parsed Java
+  trail: [],            // [{x,y}] robot path during run
+  javaSource: '',       // raw uploaded Java text
+  activeTab: 'js',
+};
+
+// ── Canvas ────────────────────────────────────────────────────
+const canvas = document.getElementById('field-canvas');
+const ctx = canvas.getContext('2d');
+let scale = 1;
+
+function resizeCanvas() {
+  const a = document.getElementById('canvas-area');
+  canvas.width = a.clientWidth; canvas.height = a.clientHeight;
+  updateScale(); draw();
+}
+function updateScale() {
+  const a = document.getElementById('canvas-area');
+  const m = 40;
+  scale = Math.min((a.clientWidth-m*2)/state.field.size,(a.clientHeight-m*2)/state.field.size)*state.zoom;
+}
+function fieldToCanvas(x,y) {
+  const ox=(canvas.width/2-state.field.size*scale/2)+state.pan.x;
+  const oy=(canvas.height/2-state.field.size*scale/2)+state.pan.y;
+  return {x:ox+x*scale, y:oy+(state.field.size-y)*scale};
+}
+function canvasToField(cx,cy) {
+  const ox=(canvas.width/2-state.field.size*scale/2)+state.pan.x;
+  const oy=(canvas.height/2-state.field.size*scale/2)+state.pan.y;
+  return {x:(cx-ox)/scale, y:state.field.size-(cy-oy)/scale};
+}
+
+// ── Drawing ───────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawField(); drawWaypoints(); drawTrail(); drawBarriers(); drawRobot();
+  if(state.dragging&&state.dragStart) drawCurrentBarrier();
+}
+
+function drawField() {
+  const fs=state.field.size, ts=state.field.tileSize;
+  const p0=fieldToCanvas(0,0), p1=fieldToCanvas(fs,fs);
+  ctx.fillStyle='#1a3a1a';
+  ctx.fillRect(p0.x,p1.y,p1.x-p0.x,p0.y-p1.y);
+  const zs=fs/3;
+  const rp0=fieldToCanvas(0,0),rp1=fieldToCanvas(zs,zs);
+  ctx.fillStyle='#3a1a1a'; ctx.fillRect(rp0.x,rp1.y,rp1.x-rp0.x,rp0.y-rp1.y);
+  const bp0=fieldToCanvas(fs-zs,fs-zs),bp1=fieldToCanvas(fs,fs);
+  ctx.fillStyle='#1a1a3a'; ctx.fillRect(bp0.x,bp1.y,bp1.x-bp0.x,bp0.y-bp1.y);
+  ctx.strokeStyle='#2a5a2a'; ctx.lineWidth=0.5;
+  for(let x=0;x<=fs;x+=ts){const a=fieldToCanvas(x,0),b=fieldToCanvas(x,fs);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+  for(let y=0;y<=fs;y+=ts){const a=fieldToCanvas(0,y),b=fieldToCanvas(fs,y);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+  ctx.strokeStyle='#4a8a4a'; ctx.lineWidth=2;
+  ctx.strokeRect(p0.x,p1.y,p1.x-p0.x,p0.y-p1.y);
+  ctx.fillStyle='#4a7a4a'; ctx.font=`${Math.max(9,scale*2.5)}px monospace`;
+  ctx.textAlign='center';
+  for(let x=0;x<=fs;x+=ts){const pt=fieldToCanvas(x,0);ctx.fillText(x,pt.x,pt.y+14);}
+  ctx.textAlign='right';
+  for(let y=0;y<=fs;y+=ts){const pt=fieldToCanvas(0,y);ctx.fillText(y,pt.x-4,pt.y+4);}
+  const cx=fieldToCanvas(fs/2,fs/2);
+  ctx.strokeStyle='#3a6a3a'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(p0.x,cx.y);ctx.lineTo(p1.x,cx.y);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx.x,p0.y);ctx.lineTo(cx.x,p1.y);ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawWaypoints() {
+  if (!state.waypoints.length) return;
+  document.getElementById('waypoint-legend').style.display = 'block';
+  // Draw path lines between waypoints
+  ctx.strokeStyle = 'rgba(79,195,247,0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6,4]);
+  ctx.beginPath();
+  const start = fieldToCanvas(state.startPos.x, state.startPos.y);
+  ctx.moveTo(start.x, start.y);
+  for (const wp of state.waypoints) {
+    const p = fieldToCanvas(mmToIn(wp.x), mmToIn(wp.y));
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Draw waypoint circles
+  state.waypoints.forEach((wp, i) => {
+    const p = fieldToCanvas(mmToIn(wp.x), mmToIn(wp.y));
+    ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(79,195,247,0.2)';
+    ctx.fill();
+    ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#4fc3f7'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(i+1, p.x, p.y+4);
+  });
+}
+
+function drawTrail() {
+  if (state.trail.length < 2) return;
+  ctx.strokeStyle = 'rgba(255,200,0,0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  const p0 = fieldToCanvas(state.trail[0].x, state.trail[0].y);
+  ctx.moveTo(p0.x, p0.y);
+  for (let i = 1; i < state.trail.length; i++) {
+    const p = fieldToCanvas(state.trail[i].x, state.trail[i].y);
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+}
+
+function drawBarriers() {
+  for (const b of state.barriers) {
+    const p1=fieldToCanvas(b.x1,b.y1),p2=fieldToCanvas(b.x2,b.y2);
+    ctx.strokeStyle=b.color||'#e8b800'; ctx.lineWidth=(b.width||4)*scale/24; ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
+    ctx.fillStyle=b.color||'#e8b800';
+    ctx.beginPath();ctx.arc(p1.x,p1.y,3,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(p2.x,p2.y,3,0,Math.PI*2);ctx.fill();
+  }
+}
+
+function drawCurrentBarrier() {
+  const p1=fieldToCanvas(state.dragStart.x,state.dragStart.y);
+  const p2=fieldToCanvas(state.dragCurrent.x,state.dragCurrent.y);
+  ctx.strokeStyle=state.barrierColor+'cc'; ctx.lineWidth=Math.max(1,state.barrierWidth*scale/24);
+  ctx.lineCap='round'; ctx.setLineDash([6,3]);
+  ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawRobot() {
+  const r=state.robot;
+  const cx=fieldToCanvas(r.x,r.y);
+  const ang=-r.heading*Math.PI/180;
+  const hw=r.w*scale/2, hl=r.h*scale/2;
+  ctx.save(); ctx.translate(cx.x,cx.y); ctx.rotate(ang);
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(-hw+2,-hl+2,hw*2,hl*2);
+  ctx.fillStyle='#e63946'; ctx.fillRect(-hw,-hl,hw*2,hl*2);
+  ctx.fillStyle='#fff';
+  ctx.beginPath();ctx.moveTo(0,-hl+4);ctx.lineTo(hw/2,hl/2);ctx.lineTo(-hw/2,hl/2);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.strokeRect(-hw,-hl,hw*2,hl*2);
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(0,0,3,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+  ctx.fillStyle='#fff'; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+  ctx.fillText(`(${r.x.toFixed(1)}", ${r.y.toFixed(1)}") ${r.heading.toFixed(0)}°`,cx.x,cx.y+hl+16);
+}
+
+// ── Unit helpers ──────────────────────────────────────────────
+function mmToIn(mm) { return mm / 25.4; }
+function inToMm(inches) { return inches * 25.4; }
+
+// ── Tool / Mouse ──────────────────────────────────────────────
+function setTool(t) {
+  state.tool=t;
+  document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tool-'+t).classList.add('active');
+  canvas.style.cursor=t==='pan'?'grab':t==='move'?'move':'crosshair';
+  document.getElementById('canvas-overlay').textContent=
+    t==='barrier'?'Click + drag to draw barriers':
+    t==='move'?'Click to place robot start':
+    'Drag to pan · Scroll to zoom';
+}
+
+canvas.addEventListener('mousedown',e=>{
+  const fp=canvasToField(e.offsetX,e.offsetY);
+  if(state.tool==='barrier'){state.dragging=true;state.dragStart=fp;state.dragCurrent=fp;}
+  else if(state.tool==='move'){
+    state.robot.x=Math.max(0,Math.min(state.field.size,fp.x));
+    state.robot.y=Math.max(0,Math.min(state.field.size,fp.y));
+    state.startPos.x=state.robot.x; state.startPos.y=state.robot.y;
+    document.getElementById('start-x').value=state.robot.x.toFixed(1);
+    document.getElementById('start-y').value=state.robot.y.toFixed(1);
+    draw();
+  } else if(state.tool==='pan'){state.pan.dragging=true;state.pan.last={x:e.offsetX,y:e.offsetY};canvas.style.cursor='grabbing';}
+});
+canvas.addEventListener('mousemove',e=>{
+  const fp=canvasToField(e.offsetX,e.offsetY);
+  if(state.tool==='barrier'&&state.dragging){state.dragCurrent=fp;draw();}
+  else if(state.tool==='pan'&&state.pan.dragging){
+    state.pan.x+=e.offsetX-state.pan.last.x;state.pan.y+=e.offsetY-state.pan.last.y;
+    state.pan.last={x:e.offsetX,y:e.offsetY};draw();
+  }
+  document.getElementById('canvas-overlay').textContent=`(${fp.x.toFixed(1)}", ${fp.y.toFixed(1)}")`;
+});
+canvas.addEventListener('mouseup',e=>{
+  if(state.tool==='barrier'&&state.dragging){
+    const fp=canvasToField(e.offsetX,e.offsetY);
+    if(Math.abs(fp.x-state.dragStart.x)>1||Math.abs(fp.y-state.dragStart.y)>1)
+      addBarrier(state.dragStart.x,state.dragStart.y,fp.x,fp.y);
+    state.dragging=false;state.dragStart=null;
+  }
+  if(state.pan.dragging){state.pan.dragging=false;canvas.style.cursor='grab';}
+});
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  state.zoom=Math.max(0.3,Math.min(5,state.zoom*(e.deltaY<0?1.1:0.9)));
+  updateScale();draw();
+},{passive:false});
+
+// ── Barriers ──────────────────────────────────────────────────
+function addBarrier(x1,y1,x2,y2){
+  const b={id:Date.now(),x1:+x1.toFixed(2),y1:+y1.toFixed(2),x2:+x2.toFixed(2),y2:+y2.toFixed(2),
+    color:document.getElementById('barrier-color').value,
+    width:parseInt(document.getElementById('barrier-width').value)||4};
+  state.barriers.push(b); updateBarrierList(); draw();
+}
+function updateBarrierList(){
+  document.getElementById('barrier-count').textContent=`(${state.barriers.length})`;
+  document.getElementById('barrier-list').innerHTML=state.barriers.map(b=>`
+    <div class="barrier-item">
+      <div class="barrier-color-dot" style="background:${b.color}"></div>
+      <span class="bname">(${b.x1.toFixed(0)},${b.y1.toFixed(0)})→(${b.x2.toFixed(0)},${b.y2.toFixed(0)})</span>
+      <button onclick="removeBarrier(${b.id})">✕</button>
+    </div>`).join('');
+}
+function removeBarrier(id){state.barriers=state.barriers.filter(b=>b.id!==id);updateBarrierList();draw();}
+function clearBarriers(){state.barriers=[];updateBarrierList();draw();logConsole('Barriers cleared','warn');}
+function exportBarriers(){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(state.barriers,null,2)],{type:'application/json'}));
+  a.download='barriers.json';a.click();
+}
+
+// ── Collision ─────────────────────────────────────────────────
+function segIntersect(ax1,ay1,ax2,ay2,bx1,by1,bx2,by2){
+  const d1x=ax2-ax1,d1y=ay2-ay1,d2x=bx2-bx1,d2y=by2-by1;
+  const cross=d1x*d2y-d1y*d2x;
+  if(Math.abs(cross)<1e-10)return false;
+  const t=((bx1-ax1)*d2y-(by1-ay1)*d2x)/cross;
+  const u=((bx1-ax1)*d1y-(by1-ay1)*d1x)/cross;
+  return t>=0&&t<=1&&u>=0&&u<=1;
+}
+function robotEdges(r){
+  const hw=r.w/2,hl=r.h/2,a=r.heading*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
+  const corners=[[-hw,-hl],[hw,-hl],[hw,hl],[-hw,hl]].map(([lx,ly])=>({x:r.x+lx*c-ly*s,y:r.y+lx*s+ly*c}));
+  return[[corners[0],corners[1]],[corners[1],corners[2]],[corners[2],corners[3]],[corners[3],corners[0]]];
+}
+function checkCollision(r){
+  for(const b of state.barriers)
+    for(const [p1,p2] of robotEdges(r))
+      if(segIntersect(p1.x,p1.y,p2.x,p2.y,b.x1,b.y1,b.x2,b.y2))return true;
+  return false;
+}
+function outOfBounds(r){
+  const fs=state.field.size;
+  for(const [p1,p2] of robotEdges(r))
+    if(p1.x<0||p1.x>fs||p1.y<0||p1.y>fs||p2.x<0||p2.x>fs||p2.y<0||p2.y>fs)return true;
+  return false;
+}
+
+// ── Console / Telemetry ───────────────────────────────────────
+function logConsole(msg,type='log'){
+  const out=document.getElementById('console-out');
+  const ts=(state.simTime/1000).toFixed(2);
+  const d=document.createElement('div');
+  d.className=type;
+  d.innerHTML=`<span class="con-ts">[${ts}s]</span>${escHtml(String(msg))}`;
+  out.appendChild(d); out.scrollTop=out.scrollHeight;
+}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function updateTelemetry(){
+  const r=state.robot;
+  const lines=[
+    `<span class="tkey">X     </span> ${r.x.toFixed(2)}" (${inToMm(r.x).toFixed(0)}mm)`,
+    `<span class="tkey">Y     </span> ${r.y.toFixed(2)}" (${inToMm(r.y).toFixed(0)}mm)`,
+    `<span class="tkey">Heading</span>${r.heading.toFixed(2)}°`,
+    `<span class="tkey">Time  </span> ${(state.simTime/1000).toFixed(2)}s`,
+  ];
+  for(const[k,v] of Object.entries(state.telemetryData))
+    lines.push(`<span class="tkey">${escHtml(String(k)).padEnd(8)}</span>${escHtml(String(v))}`);
+  document.getElementById('telemetry').innerHTML=lines.join('\n');
+}
+
+// ── FTC Runtime API ───────────────────────────────────────────
+function createFTCApi(){
+  const driveSpeed=parseFloat(document.getElementById('drive-speed').value)||1.0;
+  const MAX_VEL=30*driveSpeed; // inches/sec at full power
+  const motors={leftFront:0,rightFront:0,leftBack:0,rightBack:0};
+  const servos={};
+  let stopped=false;
+
+  function sleep(ms){
+    return new Promise((res,rej)=>{
+      let elapsed=0;
+      const step=16;
+      function tick(){
+        if(state.stopRequested||stopped){rej(new Error('STOPPED'));return;}
+        elapsed+=step;
+        stepRobot(step/1000);
+        state.simTime+=step;
+        state.trail.push({x:state.robot.x,y:state.robot.y});
+        if(state.trail.length>2000)state.trail.shift();
+        updateTelemetry();draw();
+        if(elapsed>=ms)res();
+        else requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function stepRobot(dt){
+    const lf=motors.leftFront||0,rf=motors.rightFront||0;
+    const lb=motors.leftBack||0,rb=motors.rightBack||0;
+    const vx=(lf+rf+lb+rb)/4;
+    const vy=(-lf+rf+lb-rb)/4;
+    const w=(-lf+rf-lb+rb)/4;
+    const hr=state.robot.heading*Math.PI/180;
+    const dx=(vx*Math.cos(hr)-vy*Math.sin(hr))*MAX_VEL*dt;
+    const dy=(vx*Math.sin(hr)+vy*Math.cos(hr))*MAX_VEL*dt;
+    const dh=w*150*dt;
+    const nr={x:state.robot.x+dx,y:state.robot.y+dy,heading:(state.robot.heading+dh)%360,w:state.robot.w,h:state.robot.h};
+    if(outOfBounds(nr)){logConsole(`⚠ OOB at (${nr.x.toFixed(1)}", ${nr.y.toFixed(1)}")`, 'warn');stopAll();}
+    else if(checkCollision(nr)){logConsole(`⚠ Collision at (${nr.x.toFixed(1)}", ${nr.y.toFixed(1)}")`, 'warn');stopAll();}
+    else{state.robot.x=nr.x;state.robot.y=nr.y;state.robot.heading=nr.heading;}
+  }
+
+  function stopAll(){motors.leftFront=motors.rightFront=motors.leftBack=motors.rightBack=0;}
+
+  // Pinpoint-style odometry (units in mm, matching Java code)
+  const odo={
+    getX:()=>inToMm(state.robot.x),
+    getY:()=>inToMm(state.robot.y),
+    getHeading:()=>state.robot.heading*Math.PI/180,
+    getHeadingDeg:()=>state.robot.heading,
+  };
+
+  // P-controller moveToPoint — mirrors Java moveToPoint exactly
+  async function moveToPoint(targetXmm, targetYmm, targetHeadingRad,
+      {driveKp=0.0020,headingKp=1.2,maxDrive=0.45,maxTurn=0.25,
+       posTolMm=25,headTolRad=0.052,holdSec=0.25}={}) {
+    let holdStart=null;
+    logConsole(`→ moveToPoint(${targetXmm}mm, ${targetYmm}mm, ${(targetHeadingRad*180/Math.PI).toFixed(1)}°)`,'info');
+    while(!stopped&&!state.stopRequested){
+      const xMm=odo.getX(), yMm=odo.getY(), headingRad=odo.getHeading();
+      const xErr=targetXmm-xMm;
+      const yErr=targetYmm-yMm;
+      let hErr=targetHeadingRad-headingRad;
+      while(hErr>Math.PI)hErr-=2*Math.PI;
+      while(hErr<-Math.PI)hErr+=2*Math.PI;
+      const fwd=Math.max(-maxDrive,Math.min(maxDrive,xErr*driveKp));
+      const side=Math.max(-maxDrive,Math.min(maxDrive,yErr*driveKp));
+      const rot=Math.max(-maxTurn,Math.min(maxTurn,-hErr*headingKp));
+      const atTarget=Math.abs(xErr)<=posTolMm&&Math.abs(yErr)<=posTolMm&&Math.abs(hErr)<=headTolRad;
+      if(atTarget){
+        motors.leftFront=motors.rightFront=motors.leftBack=motors.rightBack=0;
+        if(holdStart===null)holdStart=state.simTime;
+        if((state.simTime-holdStart)>=holdSec*1000)break;
+      } else {
+        holdStart=null;
+        // mecanum: fwd=X, side=Y in field frame → rotate to robot frame
+        const hr=state.robot.heading*Math.PI/180;
+        const rfwd=fwd*Math.cos(hr)+side*Math.sin(hr);
+        const rside=-fwd*Math.sin(hr)+side*Math.cos(hr);
+        motors.leftFront=rfwd+rside+rot;
+        motors.rightFront=rfwd-rside-rot;
+        motors.leftBack=rfwd-rside+rot;
+        motors.rightBack=rfwd+rside-rot;
+      }
+      state.telemetryData['Xerr(mm)']=xErr.toFixed(1);
+      state.telemetryData['Yerr(mm)']=yErr.toFixed(1);
+      await sleep(16);
+    }
+    stopAll();
+    logConsole(`✓ Arrived at (${odo.getX().toFixed(0)}mm, ${odo.getY().toFixed(0)}mm)`,'success');
+  }
+
+  const api={
+    setMotorPower(n,p){motors[n]=Math.max(-1,Math.min(1,p));},
+    setAllMotors(lf,rf,lb,rb){motors.leftFront=Math.max(-1,Math.min(1,lf));motors.rightFront=Math.max(-1,Math.min(1,rf));motors.leftBack=Math.max(-1,Math.min(1,lb));motors.rightBack=Math.max(-1,Math.min(1,rb));},
+    stopMotors(){stopAll();},
+    async drive(p,ms){api.setAllMotors(p,p,p,p);await sleep(ms);stopAll();},
+    async strafe(p,ms){api.setAllMotors(-p,p,p,-p);await sleep(ms);stopAll();},
+    async turn(p,ms){api.setAllMotors(-p,p,-p,p);await sleep(ms);stopAll();},
+    async driveInches(inches,p=0.5){await api.drive(p*Math.sign(inches),Math.abs(inches)/(MAX_VEL*Math.abs(p))*1000);},
+    async turnDegrees(deg,p=0.5){await api.turn(p*Math.sign(deg),Math.abs(deg)/(150*Math.abs(p))*1000);},
+    async moveToPoint(xMm,yMm,headingRad,opts){await moveToPoint(xMm,yMm,headingRad,opts);},
+    async goToListOfPoints(arr,opts){
+      for(let i=0;i+1<arr.length;i+=2){
+        if(stopped||state.stopRequested)break;
+        await moveToPoint(arr[i],arr[i+1],0,opts);
+      }
+    },
+    setServo(n,p){servos[n]=p;state.telemetryData[n]=p.toFixed?p.toFixed(2):p;},
+    getServo(n){return servos[n]||0;},
+    getX(){return state.robot.x;}, getY(){return state.robot.y;},
+    getXmm(){return inToMm(state.robot.x);}, getYmm(){return inToMm(state.robot.y);},
+    getHeading(){return state.robot.heading;},
+    getTime(){return state.simTime;},
+    opModeIsActive(){return !state.stopRequested&&!stopped;},
+    sleep,
+    async waitForStart(){logConsole('Waiting for start...','info');await sleep(300);logConsole('▶ OpMode started!','success');},
+    telemetry:{
+      addData(k,v){state.telemetryData[k]=v;updateTelemetry();},
+      update(){updateTelemetry();},
+    },
+    log(msg){logConsole(String(msg),'log');},
+    requestStop(){stopped=true;state.stopRequested=true;},
+    odo,
+  };
+  return api;
+}
+
+// ── Java Parser ───────────────────────────────────────────────
+function parseJava(src) {
+  const result = {
+    className: '', opModeName: '', locations: [],
+    driveKp: null, headingKp: null, maxDrivePower: null, maxTurnPower: null,
+    posToleranceMm: null, holdTimeSec: null,
+    startX: null, startY: null,
+    errors: [], warnings: [], info: [],
+  };
+
+  // Class name
+  const classMatch = src.match(/public\s+class\s+(\w+)/);
+  if (classMatch) result.className = classMatch[1];
+
+  // @Autonomous name
+  const autoMatch = src.match(/@Autonomous\s*\([^)]*name\s*=\s*"([^"]+)"/);
+  if (autoMatch) result.opModeName = autoMatch[1];
+
+  // LOCATIONS list — handles List.of(...) with any whitespace/newlines
+  const locMatch = src.match(/LOCATIONS\s*=\s*new\s+ArrayList[^(]*\(\s*List\.of\s*\(([^)]+)\)/s);
+  if (locMatch) {
+    const nums = locMatch[1].match(/-?\d+(\.\d+)?/g);
+    if (nums) result.locations = nums.map(Number);
+    result.info.push(`Found LOCATIONS: [${result.locations.join(', ')}]`);
+  } else {
+    result.warnings.push('Could not find LOCATIONS list — using empty waypoints');
+  }
+
+  // Constants
+  function extractConst(name) {
+    const m = src.match(new RegExp(`${name}\\s*=\\s*([\\d.]+)`));
+    return m ? parseFloat(m[1]) : null;
+  }
+  result.driveKp = extractConst('DRIVE_KP');
+  result.headingKp = extractConst('HEADING_KP');
+  result.maxDrivePower = extractConst('MAX_DRIVE_POWER');
+  result.maxTurnPower = extractConst('MAX_TURN_POWER');
+  result.posToleranceMm = extractConst('POSITION_TOLERANCE_MM');
+  result.holdTimeSec = extractConst('HOLD_TIME_SECONDS');
+
+  // Pinpoint offsets → approximate start position
+  const offMatch = src.match(/setOffsets\s*\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/);
+  if (offMatch) {
+    result.info.push(`Pinpoint offsets: X=${offMatch[1]}mm Y=${offMatch[2]}mm`);
+  }
+
+  if (!result.className) result.errors.push('Could not find class name');
+  if (!result.locations.length) result.warnings.push('No waypoints found in LOCATIONS');
+  if (result.locations.length % 2 !== 0) result.warnings.push('LOCATIONS has odd number of values — last point will be skipped');
+
+  return result;
+}
+
+function buildWaypointsFromLocations(locations) {
+  const wps = [];
+  for (let i = 0; i + 1 < locations.length; i += 2) {
+    wps.push({ x: locations[i], y: locations[i+1], label: `P${wps.length+1}` });
+  }
+  return wps;
+}
+
+function generateJsFromParsed(parsed) {
+  if (!parsed.locations.length) {
+    return `// No LOCATIONS found in your Java file.\n// Add waypoints manually below:\nawait waitForStart();\nlog("No waypoints parsed");\n`;
+  }
+
+  const opts = [];
+  if (parsed.driveKp !== null)       opts.push(`  driveKp: ${parsed.driveKp}`);
+  if (parsed.headingKp !== null)     opts.push(`  headingKp: ${parsed.headingKp}`);
+  if (parsed.maxDrivePower !== null) opts.push(`  maxDrive: ${parsed.maxDrivePower}`);
+  if (parsed.maxTurnPower !== null)  opts.push(`  maxTurn: ${parsed.maxTurnPower}`);
+  if (parsed.posToleranceMm !== null)opts.push(`  posTolMm: ${parsed.posToleranceMm}`);
+  if (parsed.holdTimeSec !== null)   opts.push(`  holdSec: ${parsed.holdTimeSec}`);
+
+  const optsStr = opts.length ? `, {\n${opts.join(',\n')}\n}` : '';
+  const locsStr = JSON.stringify(parsed.locations);
+
+  return `// Auto-generated from: ${parsed.className}.java
+// OpMode: "${parsed.opModeName || 'Unknown'}"
+// Parsed ${parsed.locations.length/2} waypoint(s) from LOCATIONS
+
+await waitForStart();
+telemetry.addData("Status", "Running");
+telemetry.update();
+
+// goToListOfPoints mirrors your Java goToListOfPoints() exactly.
+// Each pair [X, Y] is in millimeters, heading=0 (matching your Java).
+const LOCATIONS = ${locsStr};
+
+await goToListOfPoints(LOCATIONS${optsStr});
+
+// Stop
+stopMotors();
+telemetry.addData("Status", "Complete");
+telemetry.update();
+log("Autonomous complete!");
+`;
+}
+
+// ── File Import ───────────────────────────────────────────────
+function handleJavaFile(file) {
+  if (!file || !file.name.endsWith('.java')) {
+    showImportStatus('Please select a .java file', 'error'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const src = e.target.result;
+    state.javaSource = src;
+    const parsed = parseJava(src);
+    showParsedInfo(parsed);
+
+    // Build waypoints for canvas overlay
+    state.waypoints = buildWaypointsFromLocations(parsed.locations);
+    draw();
+
+    // Generate JS and put it in the editor
+    const js = generateJsFromParsed(parsed);
+    document.getElementById('code-editor').value = js;
+    updateLineNums();
+
+    // Update start position to (0,0) since Java resets Pinpoint
+    document.getElementById('start-x').value = '0';
+    document.getElementById('start-y').value = '0';
+    document.getElementById('start-h').value = '0';
+
+    // Show Java source in the java tab
+    if (state.activeTab === 'java') {
+      document.getElementById('code-editor').value = src;
+      updateLineNums();
+    }
+
+    const errCount = parsed.errors.length;
+    const warnCount = parsed.warnings.length;
+    if (errCount > 0) {
+      showImportStatus(`⚠ Parsed with ${errCount} error(s) — check console`, 'error');
+      parsed.errors.forEach(e => logConsole('Java parse error: ' + e, 'error'));
+    } else if (warnCount > 0) {
+      showImportStatus(`✓ ${file.name} imported (${warnCount} warning${warnCount>1?'s':''})`, 'warn');
+    } else {
+      showImportStatus(`✓ ${file.name} imported successfully`, 'success');
+    }
+    parsed.warnings.forEach(w => logConsole('Java parse warn: ' + w, 'warn'));
+    parsed.info.forEach(i => logConsole('Java: ' + i, 'info'));
+    logConsole(`Parsed class: ${parsed.className} | ${state.waypoints.length} waypoint(s)`, 'success');
+  };
+  reader.readAsText(file);
+}
+
+function showImportStatus(msg, type) {
+  const el = document.getElementById('import-status');
+  el.textContent = msg; el.className = type; el.style.display = 'block';
+}
+
+function showParsedInfo(parsed) {
+  const el = document.getElementById('parsed-info');
+  if (!parsed.className) { el.style.display='none'; return; }
+  const rows = [
+    ['Class', parsed.className],
+    ['OpMode', parsed.opModeName || '—'],
+    ['Waypoints', parsed.locations.length/2 || 0],
+    ['DRIVE_KP', parsed.driveKp ?? '—'],
+    ['MAX_DRIVE', parsed.maxDrivePower ?? '—'],
+    ['POS_TOL', parsed.posToleranceMm ? parsed.posToleranceMm+'mm' : '—'],
+  ];
+  el.innerHTML = rows.map(([k,v])=>`<div class="prow"><span>${k}</span><span class="pval">${v}</span></div>`).join('');
+  el.style.display = 'block';
+}
+
+// Drag-and-drop on drop zone
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  handleJavaFile(e.dataTransfer.files[0]);
+});
+document.getElementById('java-file-input').addEventListener('change', e => handleJavaFile(e.target.files[0]));
+document.getElementById('btn-import-java').onclick = () => document.getElementById('java-file-input').click();
+
+// ── Tab switching ─────────────────────────────────────────────
+function switchTab(tab) {
+  state.activeTab = tab;
+  document.getElementById('tab-js').classList.toggle('active', tab==='js');
+  document.getElementById('tab-java').classList.toggle('active', tab==='java');
+  if (tab === 'java') {
+    document.getElementById('code-editor').value = state.javaSource || '// No Java file imported yet.\n// Click "Import .java" or drop a file in the left panel.';
+    document.getElementById('code-editor').readOnly = true;
+  } else {
+    // Restore JS — if we have parsed source, regenerate; otherwise keep what's there
+    document.getElementById('code-editor').readOnly = false;
+    if (state.javaSource) {
+      const parsed = parseJava(state.javaSource);
+      document.getElementById('code-editor').value = generateJsFromParsed(parsed);
+    }
+  }
+  updateLineNums();
+}
+
+// ── Run Code ──────────────────────────────────────────────────
+async function runCode() {
+  if (state.running) return;
+  if (state.activeTab === 'java') { logConsole('Switch to "Simulator Script" tab to run', 'warn'); return; }
+  const code = document.getElementById('code-editor').value;
+
+  state.robot.x = parseFloat(document.getElementById('start-x').value) || 0;
+  state.robot.y = parseFloat(document.getElementById('start-y').value) || 0;
+  state.robot.heading = parseFloat(document.getElementById('start-h').value) || 0;
+  state.robot.w = parseFloat(document.getElementById('robot-w').value) || 18;
+  state.robot.h = parseFloat(document.getElementById('robot-l').value) || 18;
+  state.telemetryData = {}; state.simTime = 0; state.stopRequested = false;
+  state.trail = []; state.running = true;
+
+  document.getElementById('btn-run').style.display='none';
+  document.getElementById('btn-stop').style.display='';
+  document.getElementById('sim-status').textContent='● RUNNING';
+  document.getElementById('sim-status').className='status-running';
+  document.getElementById('console-out').innerHTML='';
+  logConsole('=== Simulation Started ===','success');
+  draw();
+
+  try {
+    const api = createFTCApi();
+    const wrapped = `(async function(
+      hardwareMap, telemetry, sleep, waitForStart, opModeIsActive,
+      drive, strafe, turn, driveInches, turnDegrees,
+      setMotorPower, setAllMotors, stopMotors,
+      moveToPoint, goToListOfPoints,
+      setServo, getServo, getX, getY, getXmm, getYmm, getHeading, getTime, log, requestStop
+    ) {
+${code}
+    })(
+      {}, api.telemetry, api.sleep, api.waitForStart, api.opModeIsActive,
+      api.drive, api.strafe, api.turn, api.driveInches, api.turnDegrees,
+      api.setMotorPower, api.setAllMotors, api.stopMotors,
+      api.moveToPoint, api.goToListOfPoints,
+      api.setServo, api.getServo, api.getX, api.getY, api.getXmm, api.getYmm,
+      api.getHeading, api.getTime, api.log, api.requestStop
+    )`;
+    await (new Function('api', wrapped))(api);
+    logConsole('=== Simulation Complete ===','success');
+  } catch(err) {
+    if(err.message==='STOPPED') logConsole('=== Stopped ===','warn');
+    else { logConsole(`ERROR: ${err.message}`,'error'); console.error(err); }
+  }
+
+  state.running=false;
+  document.getElementById('btn-run').style.display='';
+  document.getElementById('btn-stop').style.display='none';
+  document.getElementById('sim-status').textContent='● IDLE';
+  document.getElementById('sim-status').className='status-idle';
+  draw();
+}
+
+function stopSim() { state.stopRequested = true; }
+
+// ── Settings sync ─────────────────────────────────────────────
+function syncSettings() {
+  state.field.size=parseInt(document.getElementById('field-size').value)||144;
+  state.field.tileSize=parseInt(document.getElementById('tile-size').value)||24;
+  state.robot.w=parseFloat(document.getElementById('robot-w').value)||18;
+  state.robot.h=parseFloat(document.getElementById('robot-l').value)||18;
+  state.barrierColor=document.getElementById('barrier-color').value;
+  state.barrierWidth=parseInt(document.getElementById('barrier-width').value)||4;
+  updateScale(); draw();
+}
+['field-size','tile-size','robot-w','robot-l','start-x','start-y','start-h',
+ 'barrier-color','barrier-width','drive-speed'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('change',syncSettings);
+});
+
+// ── Line numbers ──────────────────────────────────────────────
+function updateLineNums() {
+  const ed=document.getElementById('code-editor');
+  const n=document.getElementById('line-nums');
+  n.innerHTML=Array.from({length:ed.value.split('\n').length},(_,i)=>i+1).join('\n');
+  n.scrollTop=ed.scrollTop;
+}
+document.getElementById('code-editor').addEventListener('input',updateLineNums);
+document.getElementById('code-editor').addEventListener('scroll',()=>{
+  document.getElementById('line-nums').scrollTop=document.getElementById('code-editor').scrollTop;
+});
+document.getElementById('code-editor').addEventListener('keydown',e=>{
+  if(e.key==='Tab'){e.preventDefault();const s=e.target.selectionStart;
+    e.target.value=e.target.value.substring(0,s)+'    '+e.target.value.substring(e.target.selectionEnd);
+    e.target.selectionStart=e.target.selectionEnd=s+4;updateLineNums();}
+});
+
+// ── Buttons ───────────────────────────────────────────────────
+document.getElementById('btn-run').onclick=runCode;
+document.getElementById('btn-stop').onclick=stopSim;
+document.getElementById('btn-reset-pos').onclick=()=>{
+  state.robot.x=parseFloat(document.getElementById('start-x').value)||0;
+  state.robot.y=parseFloat(document.getElementById('start-y').value)||0;
+  state.robot.heading=parseFloat(document.getElementById('start-h').value)||0;
+  state.trail=[]; state.telemetryData={}; updateTelemetry(); draw();
+};
+document.getElementById('btn-load-example').onclick=loadExample;
+
+// ── Example JS ────────────────────────────────────────────────
+const EXAMPLE_CODE=`// Example: mirrors a Java goToListOfPoints OpMode
+// Units are millimeters (matching real FTC Pinpoint code)
+
+await waitForStart();
+telemetry.addData("Status", "Running");
+
+// goToListOfPoints takes [X1,Y1, X2,Y2, ...] in mm
+// and drives to each point with a P-controller (like your Java code)
+await goToListOfPoints([2000, 2000, 0, 0], {
+  driveKp: 0.0020,
+  headingKp: 1.2,
+  maxDrive: 0.45,
+  maxTurn: 0.25,
+  posTolMm: 25,
+  holdSec: 0.25,
+});
+
+telemetry.addData("Status", "Complete");
+telemetry.update();
+log("Done!");`;
+
+function loadExample(){
+  document.getElementById('code-editor').value=EXAMPLE_CODE;
+  updateLineNums();
+  logConsole('Example loaded — mirrors Java goToListOfPoints','info');
+}
+
+// ── Init ──────────────────────────────────────────────────────
+window.addEventListener('resize',resizeCanvas);
+resizeCanvas();
+loadExample();
+addBarrier(48,0,48,48);
+addBarrier(0,96,96,96);
+addBarrier(72,72,144,72);
+logConsole('FTC Simulator v2 ready!','success');
+logConsole('Drop a .java file in the left panel to import your OpMode','info');
+updateTelemetry();
+</script>
+</body>
+</html>
